@@ -118,7 +118,15 @@ async def websocket_endpoint(
                 letter_id=user_received_json.get("letter_id"),
             )
             tasks.clear()
-            for done_task, task_type in asyncio.as_completed(pending_tasks):
+
+            done_tasks = []
+            for future in asyncio.as_completed([task for task, _ in pending_tasks]):
+                for task, task_type in pending_tasks:
+                    if task == future:
+                        done_tasks.append((future, task_type))
+                        break
+
+            for done_task, task_type in done_tasks:
                 result = await done_task
                 result: shared_schemas.AIOutput | shared_schemas.AudioOutput
                 result = result.model_dump()
