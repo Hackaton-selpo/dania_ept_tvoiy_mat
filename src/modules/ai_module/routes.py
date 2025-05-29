@@ -92,41 +92,32 @@ async def websocket_endpoint(
             tasks = user_sockets[websocket]["tasks"]
             if user_received_json.get("text"):
                 tasks.append(
-                    (AIService().generate_ai_text_answer(
+                    (asyncio.create_task(AIService().generate_ai_text_answer(
                         user_received_json["body"], user_received_json.get("letter_id")
-                    ), 1)
+                    )), 1)
                 )
             if user_received_json.get("image"):
                 tasks.append(
-                    (AIService().generate_ai_image_answer(
+                    (asyncio.create_task(AIService().generate_ai_image_answer(
                         user_received_json["body"], user_received_json.get("letter_id")
-                    ), 2)
+                    )), 2)
                 )
             if user_received_json.get("audio"):
                 tasks.append(
-                    (AIService().generate_ai_audio_answer(
+                    (asyncio.create_task(AIService().generate_ai_audio_answer(
                         user_received_json["body"],
                         user_received_json.get("letter_id"),
                         user_received_json.get("audio_text")
-
-                    ), 3)
+                    )), 3)
                 )
 
-            pending_tasks = [(asyncio.create_task(task), task_type) for task, task_type in tasks]
             user_message_id = await ChatsService.insert_message(
                 chat_id, user_received_json["body"], role=MessageRole.user,
                 letter_id=user_received_json.get("letter_id"),
             )
             tasks.clear()
 
-            done_tasks = []
-            for future in asyncio.as_completed([task for task, _ in pending_tasks]):
-                for task, task_type in pending_tasks:
-                    if task == future:
-                        done_tasks.append((future, task_type))
-                        break
-
-            for done_task, task_type in done_tasks:
+            for done_task, task_type in tasks:
                 result = await done_task
                 result: shared_schemas.AIOutput | shared_schemas.AudioOutput
                 result = result.model_dump()
