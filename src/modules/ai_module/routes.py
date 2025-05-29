@@ -112,19 +112,18 @@ async def websocket_endpoint(
                     ), 3)
                 )
 
-            pending_tasks = [asyncio.create_task(t[0]) for t in tasks]
-            task_types = {t[0]: t[1] for t in tasks}
+            pending_tasks = [(asyncio.create_task(task), task_type) for task, task_type in tasks]
             user_message_id = await ChatsService.insert_message(
                 chat_id, user_received_json["body"], role=MessageRole.user,
                 letter_id=user_received_json.get("letter_id"),
             )
             tasks.clear()
-            for done_task in asyncio.as_completed(pending_tasks):
+            for done_task, task_type in asyncio.as_completed(pending_tasks):
                 result = await done_task
                 result: shared_schemas.AIOutput | shared_schemas.AudioOutput
                 result = result.model_dump()
                 # add additional info from db
-                task_type = task_types.get(done_task._coro)
+                
                 result["chat_id"] = chat_id
                 ai_message_id = await ChatsService.insert_message(
                     chat_id, result["body"], task_type, role=MessageRole.ai,
